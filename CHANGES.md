@@ -1,6 +1,99 @@
-# Version in development
+- Added extracellular stimulation with a supporting xtra.mod (which includes a global variable defining the temporal modulation and a pointer to link the extracellular mechanism in NEURON). Useful for large networks
+
+- Solved small bug when plotting colorbar in the raster plot colored by the LFP phase 
+
+- Solved conflict between diversity and segment coordinates (per population), used in LFP setups
+
+- Added extracellular stimulation (option: without compiling an additional .mod file - large memory requirements-)
+
+- Update of documentation (stimSourceParams and stimTargetParams) incorporating how to define extracellular stimulations
+
+
+# Version 1.0.7
 
 **New features**
+
+- Introducing `batchtools` subpackage for parameters exploration and optimization
+
+- Added progress-bar indicating network creation progress. Toggle the progress bar with cfg.progressBar
+
+- cfg.connRandomSecFromList and cfg.distributeSynsUniformly can now be overriden in individual conn rule
+
+- Added ability to use `sec`, `loc`, `preSec` and `preLoc` from list in connList-type connParams
+
+- Updated tests.examples.utils to allow for dynamic pathing
+
+- Dropped python2 support
+
+**Bug fixes**
+
+- Better handling of exceptions in `importCellParams()` (incl. `h.load_file()` - issue 782)
+
+- Pandas deprecated parameter fix
+
+- Fixed pointer id overflow on MPI (e.g. for gap junctions)
+
+- preSec and preLoc are no longer lost for inverse pointer connection
+
+- Fixed crash due to use of matplotlib.TextArea deprecated param (credit: Christian O'Reilly)
+
+- syncLines in rasterPlot restored
+
+- Fixed a bug in `gatherDataFromFiles()` where cellGids for node 0 were lost
+
+- Fixed generating rhythmic spiking pattern with 'uniform' option
+
+- Fixed misleading console output when cfg.recordStims is On
+
+- The colors in CSD plots are now properly aligned vertically with the CSD time-series overlays (credit: Sam Neymotin)
+
+- Update mkdir to makedirs (credit: Jacob Sprouse)
+
+# Version 1.0.6
+
+**New features**
+
+- Raster plot colored by phase
+
+- Examples based on the CA3 model using the 'colorbyPhase' option in the plotRaster
+
+- API for loading .mod files selectively
+
+- Ability to specify custom executor to run batch with (defaults to `sh`)
+
+**Bug fixes**
+
+- Fixed loading point cell params from legacy models (issue 607)
+
+- Fix voltage movie tutorial
+
+- Fix to automatically include netstims in the sim.allSimData object when plotRaster 'include' selects 'all'
+
+- Fixed loading netParams in some scenarios (bug caused by srting functions pre-processing)
+
+- Fix of `plotRaster` pops coloring if ordered not by gid
+
+- Made cells diversity work with popParams based on `cellsList` and `gridSpacing`
+
+- Fixed handling of output of `sim.create()` - was wrong order (credit: Kate Doxey)
+
+- Fixed undeclared var `dpi` in `plotShape()`
+
+- Fixes in batch utils
+
+- Added some missing math functions to use with 'Functions as string' functionality
+
+- Switch file copying method to shutil to be compatible over all operating systems (credit: Henrik Podeus)
+
+# Version 1.0.5
+
+**New features**
+
+- Time series and PSD plots for current source density (CSD)
+
+- Added colorbar to CSD plot
+
+- Support for Sun Grid Engine HPC
 
 - Extended sim.gatherData() with more optional arguments for flexibility
 
@@ -9,6 +102,10 @@
 - Print more info about exceptions in plotting functions
 
 - Check RxD specification for potential syntax issues
+
+- Prevent zero population size in scaled-down models
+
+- Better messages for validation errors
 
 **Bug fixes**
 
@@ -21,6 +118,14 @@
 - Fixed sync lines in `plotRaster()`
 
 - Fixed performance issue in `plotConn()` with `groupBy='pop'` (default)
+
+- Fixed `recordTraces` to not require more presicion than segment size (for stim and synMech)
+
+# Version 1.0.4.2
+
+**Bug fixes**
+
+- Unpin matplotlib version (params copying issue fixed)
 
 # Version 1.0.4.1
 
@@ -94,9 +199,9 @@
 
 - Fixed some misinformation in reference.rst about the subconn
 
-- Fixed bug in dipole calculation units - changed from mA to uA 
+- Fixed bug in dipole calculation units - changed from mA to uA
 
-- Fixed bug in conditional logic when gathering LFP / dipoles 
+- Fixed bug in conditional logic when gathering LFP / dipoles
 
 - Allow tuples to specify population's cells in 'include' for plotSpike
 

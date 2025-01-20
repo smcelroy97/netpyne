@@ -3,18 +3,10 @@ Module for gathering data from nodes after a simulation
 
 """
 
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-from __future__ import absolute_import
-
 import os, pickle
-from builtins import zip
-from future import standard_library
 
 from netpyne.support.recxelectrode import RecXElectrode
 
-standard_library.install_aliases()
 import numpy as np
 from ..specs import Dict, ODict
 from . import setup
@@ -422,10 +414,8 @@ def gatherDataFromFiles(gatherLFP=True, saveFolder=None, simLabel=None, sim=None
                         data = json.load(openFile)
 
                     if 'cells' in data.keys():
-                        if fileType == 'pkl':
-                            allCells.extend([cell.__getstate__() for cell in data['cells']])
-                        else:
-                            allCells.extend(data['cells'])
+                        as_Dict = [cell if isinstance(cell, Dict) else Dict(cell) for cell in data['cells']]
+                        allCells.extend(as_Dict)
 
                     if 'pops' in data.keys():
                         loadedPops = data['pops']
@@ -509,9 +499,9 @@ def gatherDataFromFiles(gatherLFP=True, saveFolder=None, simLabel=None, sim=None
                         for key in singleNodeVecs:
                             allSimData[key] = list(fileData['simData'][key])
                         allPopsCellGids = {popLabel: [] for popLabel in nodePopsCellGids}
-                    else:
-                        for popLabel, popCellGids in nodePopsCellGids.items():
-                            allPopsCellGids[popLabel].extend(popCellGids)
+
+                    for popLabel, popCellGids in nodePopsCellGids.items():
+                        allPopsCellGids[popLabel].extend(popCellGids)
 
                     mergedFiles.append(file)
 

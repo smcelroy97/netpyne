@@ -3,15 +3,7 @@ Module with helper functions to set up and run batch simulations
 
 """
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
 import builtins
-
-from future import standard_library
-
-standard_library.install_aliases()
 
 import numpy as np
 import json
@@ -36,11 +28,13 @@ def createFolder(folder):
 
     import os
 
-    if not os.path.exists(folder):
-        try:
-            os.mkdir(folder)
-        except OSError:
-            print(' Could not create %s' % (folder))
+    # If file path does not exist, it will create the file path (parent and sub-directories)
+    
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except Exception as e:
+        print('%s: Exception: %s,' % (os.path.abspath(__file__), e))
+        raise SystemExit('Could not create %s' % (folder))
 
 
 # -------------------------------------------------------------------------------
@@ -333,6 +327,7 @@ def evaluator(batch, candidates, args, ngen, pc, **kwargs):
     paramLabels = args.get('paramLabels', [])
     coresPerNode = args.get('coresPerNode', 1)
 
+    executor = batch.runCfg.get("executor", "sh")
     mpiCommand = args.get('mpiCommand', batch.mpiCommandDefault)
     nrnCommand = args.get('nrnCommand', 'nrniv')
 
@@ -424,7 +419,7 @@ def evaluator(batch, candidates, args, ngen, pc, **kwargs):
             # ----------------------------------------------------------------------
             if type == 'mpi_direct':
                 #executer = '/bin/bash'
-                executer = 'sh' # OS agnostic (Windows)
+                executer = executor
                 jobString = jobStringMPIDirect(custom, folder, command)
             # ----------------------------------------------------------------------
             # Create script to run on HPC through slurm
@@ -459,6 +454,8 @@ def evaluator(batch, candidates, args, ngen, pc, **kwargs):
             elif type == 'hpc_sge':
                 executer = 'qsub'
                 queueName = args.get('queueName', 'default')
+                command = '%s -n $NSLOTS -hosts $(hostname) %s -python -mpi %s simConfig=%s netParams=%s' % (
+                    mpiCommand, nrnCommand, script, cfgSavePath, netParamsSavePath)
                 jobString = jobStringHPCSGE(
                     jobName, walltime, queueName, nodes, coresPerNode, jobPath, custom, command
                 )

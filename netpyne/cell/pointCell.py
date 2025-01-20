@@ -7,23 +7,12 @@ Contains pointCell class
 
 Contributors: salvadordura@gmail.com, samnemo@gmail.com
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-from __future__ import absolute_import
-
-from builtins import super
-from builtins import zip
-from builtins import range
 
 try:
     basestring
 except NameError:
     basestring = str
 
-from future import standard_library
-
-standard_library.install_aliases()
 from copy import deepcopy
 from neuron import h  # Import NEURON
 import numpy as np
@@ -66,6 +55,8 @@ class PointCell(Cell):
         if 'params' in self.tags:
             dictParams = sim.replaceDictODict(self.tags.pop('params'))
             self.params = deepcopy(dictParams)
+        else:
+            self.params = {}
 
         if create and sim.cfg.createNEURONObj:
             self.createNEURONObj()  # create cell
@@ -360,27 +351,6 @@ class PointCell(Cell):
             del nc  # discard netcon
         sim.net.gid2lid[self.gid] = len(sim.net.gid2lid)
 
-    def _setConnWeights(self, params, netStimParams):
-        from .. import sim
-
-        if netStimParams:
-            scaleFactor = sim.net.params.scaleConnWeightNetStims
-        elif (
-            isinstance(sim.net.params.scaleConnWeightModels, dict)
-            and sim.net.params.scaleConnWeightModels.get(self.tags['cellModel'], None) is not None
-        ):
-            scaleFactor = sim.net.params.scaleConnWeightModels[
-                self.tags['cellModel']
-            ]  # use scale factor specific for this cell model
-        else:
-            scaleFactor = sim.net.params.scaleConnWeight  # use global scale factor
-
-        if isinstance(params['weight'], list):
-            weights = [scaleFactor * w for w in params['weight']]
-        else:
-            weights = [scaleFactor * params['weight']] * params['synsPerConn']
-
-        return weights
 
     def addConn(self, params, netStimParams=None):
         from .. import sim
@@ -402,18 +372,12 @@ class PointCell(Cell):
                 )
             return  # if self-connection return
 
-        # Weight
-        weights = self._setConnWeights(params, netStimParams)
+        # Weights and delays
+        weights, delays = self._connWeightsAndDelays(params, netStimParams)
 
         if params.get('weightIndex') is None:
             params['weightIndex'] = 0  # set default weight matrix index
         weightIndex = params.get('weightIndex')  # note that loop below will overwrite the weights value in weights[i]
-
-        # Delays
-        if isinstance(params['delay'], list):
-            delays = params['delay']
-        else:
-            delays = [params['delay']] * params['synsPerConn']
 
         # Create connections
         for i in range(params['synsPerConn']):

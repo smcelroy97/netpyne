@@ -3,29 +3,17 @@ Module for utilities related to simulation
 
 """
 
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import division
-from __future__ import absolute_import
-
-
-from builtins import next
-from builtins import dict
-from builtins import map
-from builtins import str
-
 from netpyne.support.recxelectrode import RecXElectrode
 
 try:
     basestring
 except NameError:
     basestring = str
-from future import standard_library
 
-standard_library.install_aliases()
 from time import time
 import hashlib
 import array
+import sys
 from numbers import Number
 from collections import OrderedDict
 from neuron import h  # Import NEURON
@@ -295,6 +283,14 @@ def hashList(obj):
     """
 
     return int(hashlib.md5(array.array(chr(ord('L')), obj)).hexdigest()[0:8], 16)
+
+
+# ------------------------------------------------------------------------------
+# Hash function for file (md5 hex)
+# ------------------------------------------------------------------------------
+def fileDigest(file):
+    fileStr = open(file,'rb').read()
+    return hashlib.md5(fileStr).hexdigest()
 
 
 # ------------------------------------------------------------------------------
@@ -608,27 +604,33 @@ def replaceDictODict(obj):
 
     """
 
-    if type(obj) == list:
+    if type(obj) in [list, tuple]:
+        new = []
         for ind, item in enumerate(obj):
             if type(item) == Dict:
                 item = item.todict()
             elif type(item) == ODict:
                 item = item.toOrderedDict()
-            obj[ind] = item
-            if type(item) in [list, dict, OrderedDict]:
-                replaceDictODict(item)
+            else:
+                item = replaceDictODict(item)
+
+            new.append(item)
 
     elif type(obj) in [dict, OrderedDict, Dict, ODict]:
+        new = dict() if type(obj) in [dict, Dict] else OrderedDict()
         for key, val in obj.items():
             if type(val) == Dict:
-                obj[key] = val.todict()
+                val = val.todict()
             elif type(val) == ODict:
-                obj[key] = val.toOrderedDict()
-            if type(val) in [list, dict, OrderedDict]:
-                replaceDictODict(val)
+                val = val.toOrderedDict()
+            else:
+                val = replaceDictODict(val)
 
-    return obj
+            new[key] = val
+    else:
+        new = obj
 
+    return new
 
 # ------------------------------------------------------------------------------
 # Rename objects
@@ -913,7 +915,8 @@ def clearAll():
 
     # clean up
     sim.pc.barrier()
-    sim.pc.gid_clear()  # clear previous gid settings
+    #TODO are the references within containers cleared before the containers are?
+
 
     # clean cells and simData in all nodes
     if hasattr(sim, 'net'):
@@ -962,53 +965,97 @@ def clearAll():
             matplotlib.pyplot.clf()
             matplotlib.pyplot.close('all')
 
-    # clean rxd components
-    if hasattr(sim.net, 'rxd'):
-
-        sim.clearObj(sim.net.rxd)
-
-        if 'rxd' not in globals():
-            try:
-                from neuron import crxd as rxd
-            except:
-                pass
-        # try:
-        for r in rxd.rxd._all_reactions[:]:
-            if r():
-                rxd.rxd._unregister_reaction(r)
-
-        for s in rxd.species._all_species:
-            if s():
-                s().__del__()
-
-        rxd.region._all_regions = []
-        rxd.region._region_count = 0
-        rxd.region._c_region_lookup = None
-        rxd.species._species_counts = 0
-        rxd.section1d._purge_cptrs()
-        rxd.initializer.has_initialized = False
-        rxd.rxd.free_conc_ptrs()
-        rxd.rxd.free_curr_ptrs()
-        rxd.rxd.rxd_include_node_flux1D(0, None, None, None)
-        rxd.species._has_1d = False
-        rxd.species._has_3d = False
-        rxd.rxd._zero_volume_indices = np.ndarray(0, dtype=np.int_)
-        rxd.set_solve_type(dimension=1)
-        # clear reactions in case next sim does not use rxd
-        rxd.rxd.clear_rates()
-
-        for obj in rxd.__dict__:
-            sim.clearObj(obj)
-
-        # except:
-        #    pass
-
     if hasattr(sim, 'net'):
+        if hasattr(sim.net, 'rxd'): # check that 'net' exists before checking sim.net.rxd
+            sim.clearObj(sim.net.rxd)
+            # clean rxd components
+            if 'rxd' not in globals():
+                try:
+                    from neuron import crxd as rxd
+                except:
+                    pass
+            # try:
+            for r in rxd.rxd._all_reactions[:]:
+                if r():
+                    rxd.rxd._unregister_reaction(r)
+
+            for s in rxd.species._all_species:
+                if s():
+                    s().__del__()
+
+            rxd.region._all_regions = []
+            rxd.region._region_count = 0
+            rxd.region._c_region_lookup = None
+            rxd.species._species_counts = 0
+            rxd.section1d._purge_cptrs()
+            rxd.initializer.has_initialized = False
+            rxd.rxd.free_conc_ptrs()
+            rxd.rxd.free_curr_ptrs()
+            rxd.rxd.rxd_include_node_flux1D(0, None, None, None)
+            rxd.species._has_1d = False
+            rxd.species._has_3d = False
+            rxd.rxd._zero_volume_indices = np.ndarray(0, dtype=np.int_)
+            rxd.set_solve_type(dimension=1)
+            # clear reactions in case next sim does not use rxd
+            rxd.rxd.clear_rates()
+
+            for obj in rxd.__dict__:
+                sim.clearObj(obj)
         del sim.net
-
     import gc
-
     gc.collect()
+
+    sim.pc.barrier()
+    sim.pc.gid_clear()  # clear previous gid settings
+
+def close(clear=True):
+    """
+    Function to close simulation
+
+    """
+    from .. import sim
+    if clear:
+        clearAll()
+    else:
+        sim.pc.barrier()
+    sys.exit()
+
+
+def checkConditions(conditions, against, cellGid=None):
+
+    conditionsMet = 1
+    for (condKey, condVal) in conditions.items():
+
+        # gid matching will be processed in specific way
+        gidCompare = False
+        if (cellGid is not None) and (condKey == 'gid'):
+            compareTo = cellGid
+            gidCompare = True
+
+        else:
+            compareTo = against.get(condKey)
+
+        if isinstance(condVal, list):
+            if isinstance(condVal[0], Number):
+                if gidCompare:
+                    if compareTo not in condVal:
+                        conditionsMet = 0
+                        break
+                elif compareTo < condVal[0] or compareTo > condVal[1]:
+                    conditionsMet = 0
+                    break
+            elif isinstance(condVal[0], basestring):
+                if compareTo not in condVal:
+                    conditionsMet = 0
+                    break
+        elif isinstance(compareTo, list): # e.g. to match 'label', which may be list
+            if condVal not in compareTo:
+                conditionsMet = 0
+                break
+        elif compareTo != condVal:
+            conditionsMet = 0
+            break
+    return conditionsMet
 
 
 # ------------------------------------------------------------------------------

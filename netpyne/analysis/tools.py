@@ -3,19 +3,6 @@ Module for utilities to help analyze and plot results
 
 """
 
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-
-from future import standard_library
-
-standard_library.install_aliases()
-
-from builtins import round
-from builtins import open
-from builtins import range
-
 try:
     to_unicode = unicode
 except NameError:
@@ -49,8 +36,9 @@ def exception(function):
         try:
             return function(*args, **kwargs)
         except Exception as e:
-            err = "There was an exception in %s():" % (function.__name__)
-            print(("  %s \n    %s \n    %s" % (err, e, sys.exc_info())))
+            import traceback
+            print(f"\nThere was an exception in {function.__name__}()")
+            traceback.print_exc()
             return -1
 
     return wrapper
@@ -255,10 +243,10 @@ def plotData(sim=None):
             if sim.timingData['totalTime'] <= 1.2 * sumTime:  # Print total time (only if makes sense)
                 print(('\nTotal time = %0.2f s' % sim.timingData['totalTime']))
 
-        try:
-            print('\nEnd time: ', datetime.now())
-        except:
-            pass
+        # try:
+        #     print('\nEnd time: ', datetime.now())
+        # except:
+        #     pass
 
 
 def saveData(data, fileName=None, fileDesc=None, fileType=None, fileDir=None, sim=None, **kwargs):
